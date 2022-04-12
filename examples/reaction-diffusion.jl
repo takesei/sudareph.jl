@@ -1,15 +1,3 @@
-"""
-GrayScott Model
-- ∂ₜu := DᵤΔu - uv² + f(1-u)
-- ∂ₜv := DᵥΔv + uv² + (f+k)v
-
-Where
-- D represents the speed of diffusion
-- f represents the speed of refilling fuel
-- k represents the speed of collecting product
-
-This example solves GrayScott model with FTCS (Forward in Time Centerd in Space) scheme.
-"""
 ### A Pluto.jl notebook ###
 # v0.18.4
 
@@ -19,26 +7,25 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
-        local iv = try
-            Base.loaded_modules[Base.PkgId(
-                Base.UUID("6e696c72-6542-2067-7265-42206c756150"),
-                "AbstractPlutoDingetjes",
-            )].Bonds.initial_value
-        catch
-            b -> missing
-        end
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
 end
 
+# ╔═╡ a43f27de-a940-4785-a5d1-779b4c6ad6df
+begin
+	using Pkg
+	Pkg.add("../")
+end
+
 # ╔═╡ 0b01906a-cd24-45b8-9f29-257fda4f02d9
 begin
-    using Plots
-    using PlutoUI
-    using ProgressLogging
-    using BenchmarkTools
+using Plots
+using PlutoUI
+using ProgressLogging
+using BenchmarkTools
 end
 
 # ╔═╡ 72bf4067-2da7-47b9-9e28-3f9eb44ed6f0
@@ -50,99 +37,32 @@ $\frac{\partial u}{\partial t} := D_u \Delta u - uv^2 + F(1-u)$
 $\frac{\partial v}{\partial t} := D_v \Delta v + uv^2 - (F + k)v$
 """
 
+# ╔═╡ 77ebb3fa-6a53-4dbd-8529-46df00bbca19
+md"""### Library"""
+
 # ╔═╡ a571420e-db03-4529-ae51-a32e90a4963e
 @bind params PlutoUI.combine() do Child
-    md"""
-    ## Parameters:
-    - N ... Size of Field
-      - $(Child("N", Slider(0:1000, default=512)))
-    - D ... Defusion speeds
-      - Du ... $(Child("Du", Slider(0:0.01:1, default=.1)))
-      - Dv ... $(Child("Dv", Slider(0:0.01:1, default=.05)))
-    - f ... Fuel Supplying speed
-      - $(Child("f", Slider(0:0.0001:1, default=.0545)))
-    - k ... Product vacumming speed
-      - $(Child("k", Slider(0:0.0001:1, default=.062)))
-    """
+md"""
+## Parameters:
+- N ... Size of Field
+  - $(Child("N", Slider(0:1000, default=512)))
+- D ... Defusion speeds
+  - Du ... $(Child("Du", Slider(0:0.01:1, default=.1)))
+  - Dv ... $(Child("Dv", Slider(0:0.01:1, default=.05)))
+- f ... Fuel Supplying speed
+  - $(Child("f", Slider(0:0.0001:1, default=.0545)))
+- k ... Product vacumming speed
+  - $(Child("k", Slider(0:0.0001:1, default=.062)))
+"""
 end
 
 # ╔═╡ eabaaa67-32ad-49ef-99f2-3560f5804a29
 begin
-    inputs = [md"$(k, params[k])" for k in keys(params)]
-    md"""
-    #### Current Value
-    $(inputs)
-    """
-end
-
-# ╔═╡ 77ebb3fa-6a53-4dbd-8529-46df00bbca19
-md"""### Library"""
-
-# ╔═╡ 2c873150-ae74-11ec-0ac0-9b1cea1dbfa9
-begin
-    # Library Zone
-    struct Const{T}
-        value::T
-    end
-
-    mutable struct Status{T}
-        value::T
-    end
-
-    function update!(st::Status{T}, val::T) where {T}
-        st.value = val
-    end
-
-    abstract type BaseParams end
-
-    function update!(p::BaseParams; args...)
-        for k in keys(args)
-            setfield!(getfield(p, k), :value, args[k])
-        end
-    end
-
-    function save(p::BaseParams)
-        return p
-    end
-
-    function Δ(s::Matrix{T})::Matrix{T} where {T<:Real}
-        res = zeros(T, size(s))
-        @. res[begin:end-1, :] += @view s[begin+1:end, :]
-        @. res[begin+1:end, :] += @view s[begin:end-1, :]
-        @. res[:, begin:end-1] += @view s[:, begin+1:end]
-        @. res[:, begin+1:end] += @view s[:, begin:end-1]
-        return res
-    end
-
-    Base.@kwdef struct CoordModel
-        update::Function
-        params::BaseParams
-        save_by::Int
-        dt::AbstractFloat
-        dx::AbstractFloat
-        n_iter::Integer
-    end
-
-    function run(mod::CoordModel; kwargs...)
-        dt = (mod.dt)
-        dx = (mod.dx)
-        save_by = (mod.save_by)
-        n_iter = (mod.n_iter)
-
-        res = Vector{@NamedTuple{u::Matrix{Float64}, v::Matrix{Float64}}}(undef, div(n_iter, save_by))
-
-        st = mod.params
-        res[begin] = save(st)
-
-        @progress for i in 1:n_iter
-            st = mod.update(st, dt, dx)
-
-            if div(i, save_by) == 0
-                res[begin+i] = save(st)
-            end
-        end
-        return res
-    end
+inputs = [md"$(k, params[k])" for k in keys(params)]
+md"""
+#### Current Value
+$(inputs)
+"""
 end
 
 # ╔═╡ 54d4735b-a80f-4a7c-905b-ddde67da14ca
@@ -150,44 +70,43 @@ md"### Implemention"
 
 # ╔═╡ 9c66d0bc-6565-4fdb-bd2f-0adf714f9abd
 begin
-    Base.@kwdef struct Params <: BaseParams
-        Du::Const{Float64}
-        Dv::Const{Float64}
-        f::Const{Float64}
-        k::Const{Float64}
+Base.@kwdef struct Params <: BaseParams
+    Du::Const{Float64}
+    Dv::Const{Float64}
+    f::Const{Float64}
+    k::Const{Float64}
 
-        u::Status{Matrix{Float64}}
-        v::Status{Matrix{Float64}}
+    u::Status{Matrix{Float64}}
+    v::Status{Matrix{Float64}}
 
-        Params(Du, Dv, f, k, u, v) = new(
-            Const(Du),
-            Const(Dv),
-            Const(f),
-            Const(k),
-            Status(u),
-            Status(v),
-        )
-    end
+    Params(Du, Dv, f, k, u, v) = new(
+        Const(Du),
+        Const(Dv),
+        Const(f),
+        Const(k),
+        Status(u),
+        Status(v),
+    )
+end
 
-    function update!(p::Params, u::Matrix{Float64}, v::Matrix{Float64})
-        :nothing
-        update!(p.u, u)
-        update!(p.v, v)
-    end
+function update!(p::Params, u::Matrix{Float64}, v::Matrix{Float64}):nothing
+    update!(p.u, u)
+    update!(p.v, v)
+end
 
-    function save(p::Params)::@NamedTuple{u::Matrix{Float64}, v::Matrix{Float64}}
-        return (u=p.u.value, v=p.v.value)
-    end
+function save(p::Params)::@NamedTuple{u::Matrix{Float64}, v::Matrix{Float64}}
+    return (u=p.u.value, v=p.v.value)
+end
 
-    function equation(p::Params, dt::Float64, dx::Float64)::Params
-        Δu = Δ(p.u.value)
-        Δv = Δ(p.v.value)
+function equation(p::Params, dt::Float64, dx::Float64)::Params
+    Δu = Δ(p.u.value)
+    Δv = Δ(p.v.value)
 
-        ∂u = @. p.Du.value * Δu / dx^2 - p.u.value * p.v.value^2 + p.f.value * (1 - p.u.value)
-        ∂v = @. p.Dv.value * Δv / dx^2 + p.u.value * p.v.value^2 - (p.f.value + p.k.value) * p.v.value
-        update!(p, p.u.value + dt * ∂u, p.v.value + dt * ∂v)
-        return p
-    end
+    ∂u = @. p.Du.value * Δu / dx^2 - p.u.value * p.v.value^2 + p.f.value * (1 - p.u.value)
+    ∂v = @. p.Dv.value * Δv / dx^2 + p.u.value * p.v.value^2 - (p.f.value + p.k.value) * p.v.value
+    update!(p, p.u.value + dt * ∂u, p.v.value + dt * ∂v)
+    return p
+end
 end
 
 # ╔═╡ 875a2483-77c3-42d5-931f-840ae474fdf6
@@ -195,14 +114,14 @@ md"### Code"
 
 # ╔═╡ 050b19ca-3a2b-4fc6-b121-793a19d92604
 begin
-    b = params.N * 0.45 |> round |> Int
-    e = params.N * 0.55 |> round |> Int
+b = params.N*0.45 |> round |> Int
+e = params.N*0.55 |> round |> Int
 
-    u = ones(params.N, params.N)
-    @. u[b:e, b:e] = 0.5
+u = ones(params.N, params.N)
+@. u[b:e, b:e] = 0.5
 
-    v = zeros(params.N, params.N)
-    @. v[b:e, b:e] = 0.25
+v = zeros(params.N, params.N)
+@. v[b:e, b:e] = 0.25
 end;
 
 # ╔═╡ 31bdb858-e286-40c0-8c75-c35e43e2f7fa
@@ -219,7 +138,7 @@ model = CoordModel(
     save_by=10,
     dt=1,
     dx=1,
-    n_iter=100,
+    n_iter=200
 );
 
 # ╔═╡ 2835c045-e082-4188-a412-74e15311aa8f
@@ -227,7 +146,7 @@ res = run(model);
 
 # ╔═╡ 9f25031d-3e54-403b-a067-2813ff65edc6
 animefig = @animate for r in res
-    heatmap(r.v, lened=false)
+	heatmap(r.v, lened=false)
 end
 
 # ╔═╡ 85ceed71-0af8-441d-bd5c-d16cf770365b
@@ -243,8 +162,8 @@ ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 
 [compat]
 BenchmarkTools = "~1.3.1"
-Plots = "~1.27.3"
-PlutoUI = "~0.7.37"
+Plots = "~1.27.5"
+PlutoUI = "~0.7.38"
 ProgressLogging = "~0.1.4"
 """
 
@@ -326,9 +245,9 @@ version = "0.12.8"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "96b0bc6c52df76506efc8a441c6cf1adcb1babc4"
+git-tree-sha1 = "b153278a25dd42c65abbf4e62344f9d22e59191b"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.42.0"
+version = "3.43.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -386,9 +305,9 @@ version = "2.2.3+0"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
+git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.4.4+0"
+version = "2.4.8+0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -440,15 +359,15 @@ version = "3.3.6+0"
 
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
+git-tree-sha1 = "af237c08bda486b74318c8070adb96efa6952530"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.64.0"
+version = "0.64.2"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a6c850d77ad5118ad3be4bd188919ce97fffac47"
+git-tree-sha1 = "cd6efcf9dc746b06709df14e462f0a3fe0786b1e"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.64.0+0"
+version = "0.64.2+0"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -581,9 +500,9 @@ version = "1.3.0"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "4f00cc36fede3c04b8acf9b2e2763decfdcecfa6"
+git-tree-sha1 = "6f14549f7760d84b2db7a9b10b88cd3cc3025730"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.13"
+version = "0.15.14"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -658,9 +577,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "58f25e56b706f95125dcb796f39e1fb01d913a71"
+git-tree-sha1 = "a7e100b068a6cbead98b9f4e5c8b488934b7aea0"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.10"
+version = "0.3.11"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -745,9 +664,9 @@ version = "8.44.0+0"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "85b5da0fa43588c75bb1ff986493443f821c70b7"
+git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.3"
+version = "2.2.4"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -760,10 +679,10 @@ deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markd
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[deps.PlotThemes]]
-deps = ["PlotUtils", "Requires", "Statistics"]
-git-tree-sha1 = "a3a964ce9dc7898193536002a6dd892b1b5a6f1d"
+deps = ["PlotUtils", "Statistics"]
+git-tree-sha1 = "8162b2f8547bc23876edd0c5181b27702ae58dce"
 uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
-version = "2.0.1"
+version = "3.0.0"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
@@ -773,15 +692,15 @@ version = "1.2.0"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "5f6e1309595e95db24342e56cd4dabd2159e0b79"
+git-tree-sha1 = "88ee01b02fba3c771ac4dce0dfc4ecf0cb6fb772"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.27.3"
+version = "1.27.5"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "bf0a1121af131d9974241ba53f601211e9303a9e"
+git-tree-sha1 = "670e559e5c8e191ded66fa9ea89c97f10376bb4c"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.37"
+version = "0.7.38"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -892,9 +811,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "c3d8ba7f3fa0625b062b82853a7d5229cb728b6b"
+git-tree-sha1 = "8d7530a38dbd2c397be7ddd01a424e4f411dcc41"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.2.1"
+version = "1.2.2"
 
 [[deps.StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1172,11 +1091,11 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╟─72bf4067-2da7-47b9-9e28-3f9eb44ed6f0
-# ╟─a571420e-db03-4529-ae51-a32e90a4963e
-# ╟─eabaaa67-32ad-49ef-99f2-3560f5804a29
 # ╟─77ebb3fa-6a53-4dbd-8529-46df00bbca19
 # ╠═0b01906a-cd24-45b8-9f29-257fda4f02d9
-# ╟─2c873150-ae74-11ec-0ac0-9b1cea1dbfa9
+# ╠═a43f27de-a940-4785-a5d1-779b4c6ad6df
+# ╟─a571420e-db03-4529-ae51-a32e90a4963e
+# ╟─eabaaa67-32ad-49ef-99f2-3560f5804a29
 # ╟─54d4735b-a80f-4a7c-905b-ddde67da14ca
 # ╟─9c66d0bc-6565-4fdb-bd2f-0adf714f9abd
 # ╟─875a2483-77c3-42d5-931f-840ae474fdf6
