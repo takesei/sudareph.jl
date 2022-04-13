@@ -1,25 +1,18 @@
 abstract type BaseParams end
+abstract type BaseVar{T} end
 
-function update!(p::BaseParams; args...)
-    for k in keys(args)
-        setfield!(getfield(p, k), :value, args[k])
-    end
+struct Const{T} <: BaseVar{T}
+    value::T
 end
-
-function save(p::BaseParams)
-    return p
-end
-
-struct Const{T}
+mutable struct Status{T} <: BaseVar{T}
     value::T
 end
 
-mutable struct Status{T}
-    value::T
-end
+Base.getindex(value::T, name::Symbol) where T <: BaseParams = getfield(value, name).value
+Base.setindex!(x::T, val::Any, f::Symbol) where {T <: BaseParams} = setfield!(getfield(x, f), :value, val)
 
-function update!(st::Status{T}, val::T) where {T}
-    st.value = val
-end
+save(p::BaseParams) = error("Implement save for your Params")
+Base.copy(p::BaseParams) = error("Implment copy for your Params")
 
-export BaseParams, update!, save, Const, Status, update!
+
+export BaseParams, BaseVar, Const, Status, save
