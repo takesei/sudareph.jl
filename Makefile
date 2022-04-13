@@ -1,4 +1,4 @@
-.PHONY: lint
+.PHONY: test
 
-lint:
-	@julia -e  'using JuliaFormatter; format(".")'
+test:
+	@julia --code-coverage=user -e 'Pkg.test(coverage=true)'
