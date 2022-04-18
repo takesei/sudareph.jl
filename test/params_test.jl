@@ -29,4 +29,9 @@ sample = Params(3.14, "asdf")
         @test_throws ErrorException save(sample)
         @test_throws ErrorException copy(sample)
     end
+
+    @testset "Convert" begin
+        @test convert(Const, "asdf").value == Const{String}("asdf").value
+        @test convert(Status, "asdf").value == Status{String}("asdf").value
+    end
 end
