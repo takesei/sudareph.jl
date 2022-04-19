@@ -9,6 +9,9 @@ clean_folder("..")
         include("model_test.jl")
     end
     @time @safetestset "Utils" begin
+        @time @safetestset "CoordProc" begin
+            include("utils/coordproc_test.jl")
+        end
         @time @safetestset "CoordModel" begin
             include("utils/coordmodel_test.jl")
         end
