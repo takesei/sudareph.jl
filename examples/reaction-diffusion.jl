@@ -129,17 +129,14 @@ model = CoordModel{Params}(
         u=u,
         v=v,
 	) |> copy,
-    save_by=20,
+    save_by=50,
     dt=1,
     dx=1,
     n_iter=20000
 );
 
-# ╔═╡ c2cddad8-213e-4250-9717-6e3650ab847d
-@show @code_warntype start(model; n_iter=3, save_by=1)
-
 # ╔═╡ 2835c045-e082-4188-a412-74e15311aa8f
-res = start(model);
+res = start(model)
 
 # ╔═╡ 9f25031d-3e54-403b-a067-2813ff65edc6
 animefig = @animate for r in res
@@ -152,15 +149,14 @@ gif(animefig, fps=100)
 # ╔═╡ Cell order:
 # ╟─72bf4067-2da7-47b9-9e28-3f9eb44ed6f0
 # ╟─77ebb3fa-6a53-4dbd-8529-46df00bbca19
-# ╠═9f28da32-36e3-486b-bc78-18496b276f1e
-# ╠═a571420e-db03-4529-ae51-a32e90a4963e
+# ╟─9f28da32-36e3-486b-bc78-18496b276f1e
+# ╟─a571420e-db03-4529-ae51-a32e90a4963e
 # ╟─eabaaa67-32ad-49ef-99f2-3560f5804a29
 # ╟─54d4735b-a80f-4a7c-905b-ddde67da14ca
-# ╠═9c66d0bc-6565-4fdb-bd2f-0adf714f9abd
+# ╟─9c66d0bc-6565-4fdb-bd2f-0adf714f9abd
 # ╟─875a2483-77c3-42d5-931f-840ae474fdf6
-# ╠═050b19ca-3a2b-4fc6-b121-793a19d92604
-# ╠═31bdb858-e286-40c0-8c75-c35e43e2f7fa
-# ╠═c2cddad8-213e-4250-9717-6e3650ab847d
+# ╟─050b19ca-3a2b-4fc6-b121-793a19d92604
+# ╟─31bdb858-e286-40c0-8c75-c35e43e2f7fa
 # ╠═2835c045-e082-4188-a412-74e15311aa8f
-# ╠═9f25031d-3e54-403b-a067-2813ff65edc6
+# ╟─9f25031d-3e54-403b-a067-2813ff65edc6
 # ╠═85ceed71-0af8-441d-bd5c-d16cf770365b
