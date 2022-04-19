@@ -1,26 +1,5 @@
 using sudareph, Test, InteractiveUtils
 
-@testset "padding" begin
-    @test [1;] |> padding == [0, 1, 0]
-    @test [1;;] |> padding == [0 0 0; 0 1 0; 0 0 0]
-    @test [1, 2] |> padding == [0, 1, 2, 0]
-    @test [1 2; 3 4] |> padding == [0 0 0 0; 0 1 2 0; 0 3 4 0; 0 0 0 0]
-end
-
-@testset "supress" begin
-    @test [1;] |> padding |> supress == [1;]
-    @test [1;;] |> padding |> supress == [1;;]
-    @test [1, 2] |> padding |> supress == [1, 2]
-    @test [1 2; 3 4] |> padding |> supress == [1 2; 3 4]
-end
-
-@testset "periodic boundary condition" begin
-    @test [1;] |> padding |> periodicbc! == ones(3)
-    @test [1;;] |> padding |> periodicbc! == ones(3, 3)
-    @test [1, 2] |> padding |> periodicbc! == [2, 1, 2, 1]
-    @test [1 2; 3 4] |> padding |> periodicbc! == [4 3 4 3; 2 1 2 1; 4 3 4 3; 2 1 2 1]
-end
-
 case = [
     (arg=zeros(3, 3), exp=zeros(3, 3)),
     (arg=ones(3, 3),
@@ -33,27 +12,29 @@ case = [
     for (i, c) in enumerate(case)
         @testset "case $i" begin
             a, e = c[:arg], c[:exp]
-            @test_nowarn CoordStatus(a)
+
             temp = CoordStatus(a)
             @test temp.value == a |> padding
             @test laplacian(temp.value) == e
-            @test Δ(temp.value) == laplacian(temp.value)
+            @test copy(temp).value == temp.value
 
             t = CoordStatus(a; bc=periodicbc!)
             @test t.value == a |> padding |> periodicbc!
+            @test copy(t).value == t.value
         end
     end
     @testset "case Array" begin
         a = Vector{Matrix{Float64}}([case[i].arg for i in 1:length(case)])
         e = Vector{Matrix{Float64}}([case[i].exp for i in 1:length(case)])
-        @test_nowarn ArrayCoordStatus(a)
+
         temp = ArrayCoordStatus(a)
         @test temp.value == map(padding, a)
         @test (@. laplacian(temp.value) == e) |> all
-        @test (@. Δ(temp.value) == laplacian(temp.value)) |> all
+        @test copy(temp).value == temp.value
 
         t = ArrayCoordStatus(a; bc=periodicbc!)
         @test t.value == map(x -> x |> padding |> periodicbc!, a)
+        @test copy(t).value == t.value
     end
 end
 
